@@ -21,8 +21,7 @@ def load_artifacts():
     mca = joblib.load("mca_transformer.joblib")
     cluster_models = joblib.load("risk_band_cluster_models.joblib")
     severity_map = joblib.load("severity_map.joblib")
-    ui_categories = pd.read_csv("ui_categories.csv")
-    return mca, cluster_models, severity_map, ui_categories
+    return mca, cluster_models, severity_map
 
 mca, cluster_models, severity_map, ui_categories = load_artifacts()
 
