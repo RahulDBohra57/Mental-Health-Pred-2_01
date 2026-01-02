@@ -1,18 +1,18 @@
 # ============================================================
-# Mental Health Cluster Insight Tool (Clinical-Grade)
+# Mental Health Cluster Insight Tool
+# Final Version (Stable, Clinical-Grade, Risk-Aware)
 # ============================================================
 
 import streamlit as st
 import pandas as pd
 import joblib
-from prince import MCA
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
 from io import BytesIO
 from datetime import datetime
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
 
 # ============================================================
-# Load Artifacts & Dataset
+# Load Model Artifacts (No assumptions)
 # ============================================================
 
 @st.cache_resource
@@ -20,13 +20,12 @@ def load_artifacts():
     mca = joblib.load("mca_transformer.joblib")
     cluster_models = joblib.load("risk_band_cluster_models.joblib")
     severity_map = joblib.load("severity_map.joblib")
-    data = pd.read_csv("Mental Health Dataset.csv")
-    return mca, cluster_models, severity_map, data
+    return mca, cluster_models, severity_map
 
-mca, cluster_models, severity_map, data = load_artifacts()
+mca, cluster_models, severity_map = load_artifacts()
 
 # ============================================================
-# Feature Definitions
+# Feature Definitions (MUST MATCH TRAINING)
 # ============================================================
 
 features = [
@@ -44,48 +43,61 @@ core_symptoms = [
     "Growing_Stress",
     "Changes_Habits",
     "Mood_Swings",
-    "Coping_Struggles"
-]
-
-functional_impact = [
+    "Coping_Struggles",
     "Work_Interest",
     "Social_Weakness"
 ]
 
 # ============================================================
-# UI Labels
+# UI Question Configuration
 # ============================================================
 
-friendly_labels = {
-    "family_history": "Does your family have a history of mental health concerns?",
-    "treatment": "Are you currently undergoing any mental health treatment?",
-    "Growing_Stress": "Do you feel your stress levels have been increasing recently?",
-    "Changes_Habits": "Have you noticed recent changes in your habits (sleep, diet, routines)?",
-    "Mood_Swings": "Do you experience noticeable mood swings?",
-    "Coping_Struggles": "Do you struggle to cope with everyday challenges?",
-    "Work_Interest": "How interested are you in your work lately?",
-    "Social_Weakness": "Do you feel socially withdrawn or less engaged than usual?"
+question_config = {
+    "family_history": {
+        "question": "Is there a history of mental health concerns in your family?",
+        "options": ["Yes", "No"]
+    },
+    "treatment": {
+        "question": "Are you currently receiving any mental health support or treatment?",
+        "options": ["Yes", "No"]
+    },
+    "Growing_Stress": {
+        "question": "How would you describe your stress levels recently?",
+        "options": ["Manageable", "Elevated", "Overwhelming"]
+    },
+    "Changes_Habits": {
+        "question": "Have you noticed changes in your daily habits (sleep, appetite, routine)?",
+        "options": ["No noticeable changes", "Some changes", "Significant changes"]
+    },
+    "Mood_Swings": {
+        "question": "How frequently do you experience mood swings or emotional ups and downs?",
+        "options": ["Rarely", "Sometimes", "Often"]
+    },
+    "Coping_Struggles": {
+        "question": "How well do you feel you are coping with everyday challenges?",
+        "options": ["Coping well", "Struggling at times", "Struggling most of the time"]
+    },
+    "Work_Interest": {
+        "question": "How engaged do you feel with your work or daily responsibilities lately?",
+        "options": ["Highly engaged", "Somewhat engaged", "Not engaged"]
+    },
+    "Social_Weakness": {
+        "question": "How socially connected do you feel compared to your usual self?",
+        "options": ["As connected as usual", "Slightly less connected", "Much less connected"]
+    }
 }
 
 # ============================================================
-# Severity & Risk Logic
+# MDI & Risk Logic
 # ============================================================
 
 def calculate_mdi(user_input):
-    score = 0
-
-    for col in core_symptoms + functional_impact:
-        score += severity_map.get(user_input.get(col), 0)
-
-    # Reverse work interest (low interest = higher distress)
-    score += (3 - severity_map.get(user_input.get("Work_Interest"), 0))
-
-    return score
+    return sum(severity_map.get(user_input[col], 1) for col in core_symptoms)
 
 def assign_risk_band(mdi):
-    if mdi >= 10:
+    if mdi >= 8:
         return "High"
-    elif mdi >= 6:
+    elif mdi >= 4:
         return "Moderate"
     else:
         return "Low"
@@ -96,7 +108,7 @@ def assign_risk_band(mdi):
 
 diagnosis_map = {
     "Low": "Your responses suggest stable emotional well-being with healthy coping patterns.",
-    "Moderate": "Your responses indicate ongoing stress that may be affecting daily balance and energy.",
+    "Moderate": "Your responses indicate ongoing stress that may be affecting balance and daily energy.",
     "High": "Your responses reflect significant emotional strain that may be overwhelming your current coping capacity."
 }
 
@@ -106,15 +118,15 @@ suggestions_map = {
         "Continue activities that help you relax or feel fulfilled.",
         "Stay socially connected with people you trust.",
         "Practice occasional self-reflection or journaling.",
-        "Keep clear boundaries between work and personal time.",
-        "Monitor stress levels and respond early when they rise."
+        "Maintain healthy work–life boundaries.",
+        "Respond early when stress levels begin to rise."
     ],
     "Moderate": [
         "Break daily tasks into smaller, manageable steps.",
         "Schedule at least one restorative break each day.",
         "Reduce non-essential commitments temporarily.",
-        "Engage in light physical activity like walking or stretching.",
-        "Practice slow breathing or grounding exercises.",
+        "Engage in light physical activity such as walking.",
+        "Practice grounding or breathing exercises.",
         "Talk openly with a trusted friend or family member.",
         "Re-establish consistent sleep and meal routines."
     ],
@@ -122,16 +134,16 @@ suggestions_map = {
         "Prioritize rest and reduce mental overload wherever possible.",
         "Seek support from a trusted person instead of coping alone.",
         "Use grounding techniques such as slow breathing or sensory focus.",
-        "Avoid making major decisions while feeling emotionally overwhelmed.",
+        "Avoid major decisions while feeling emotionally overwhelmed.",
         "Create predictable daily structure using small routines.",
-        "Limit exposure to unnecessary stressors such as excessive news or social media.",
-        "Consider reaching out to a mental health professional for support.",
-        "Spend time in calming environments like nature or quiet spaces."
+        "Limit exposure to unnecessary stressors.",
+        "Consider reaching out to a mental health professional.",
+        "Spend time in calming environments."
     ]
 }
 
 # ============================================================
-# Cluster Prediction
+# Cluster Prediction (Risk-Aware)
 # ============================================================
 
 def predict_cluster(user_input):
@@ -139,13 +151,11 @@ def predict_cluster(user_input):
     risk_band = assign_risk_band(mdi)
 
     df = pd.DataFrame([user_input]).astype(str)
-    X_mca = mca.transform(df[core_symptoms + functional_impact])
-
-    X_weighted = X_mca.copy()
-    X_weighted.iloc[:, :3] = X_weighted.iloc[:, :3] * 2
+    X_mca = mca.transform(df[core_symptoms]).fillna(0)
+    X_mca.iloc[:, :3] *= 2
 
     model = cluster_models[risk_band]
-    cluster_id = int(model.predict(X_weighted)[0])
+    cluster_id = int(model.predict(X_mca)[0])
 
     return mdi, risk_band, cluster_id
 
@@ -189,12 +199,9 @@ def generate_pdf(user_name, risk_band, diagnosis, suggestions):
         y -= 15
 
     c.setFont("Helvetica", 9)
-    c.drawString(
-        50, 40,
-        "Disclaimer: This report provides general well-being insights and is not a medical diagnosis."
-    )
-
+    c.drawString(50, 40, "Disclaimer: This is not a medical diagnosis.")
     c.save()
+
     buffer.seek(0)
     return buffer
 
@@ -209,8 +216,8 @@ user_name = st.text_input("Enter your name (optional)")
 
 user_input = {}
 for feature in features:
-    options = sorted(data[feature].dropna().unique().tolist())
-    user_input[feature] = st.selectbox(friendly_labels[feature], options)
+    cfg = question_config[feature]
+    user_input[feature] = st.selectbox(cfg["question"], cfg["options"])
 
 if st.button("Generate My Well-Being Insights"):
     mdi, risk_band, cluster_id = predict_cluster(user_input)
@@ -255,7 +262,7 @@ if st.button("Generate My Well-Being Insights"):
 
 st.markdown("<hr>", unsafe_allow_html=True)
 st.markdown(
-    "<small><b>Disclaimer:</b> This tool does not provide medical advice or diagnosis. "
-    "If you are experiencing emotional distress, please consult a qualified mental health professional.</small>",
+    "<small><b>Disclaimer:</b> This tool provides general well-being insights only. "
+    "It is not a medical diagnosis.</small>",
     unsafe_allow_html=True
 )
