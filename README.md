@@ -52,12 +52,14 @@ The dataset consists of **self-reported mental health indicators**, all categori
 ### Feature Groups
 
 #### 1. Contextual Variables
+
 - `family_history`
 - `treatment`
 
 > Used for background context only (not severity drivers)
 
 #### 2. Core Symptom Indicators
+
 - `Growing_Stress`
 - `Changes_Habits`
 - `Mood_Swings`
@@ -66,6 +68,7 @@ The dataset consists of **self-reported mental health indicators**, all categori
 > Primary indicators of emotional distress
 
 #### 3. Functional Impact Indicators
+
 - `Work_Interest`
 - `Social_Weakness`
 
@@ -80,16 +83,17 @@ To overcome the limitations of pure clustering, the project introduces a **Menta
 ### Severity Encoding
 
 | Response | Severity Score |
-|-------|---------------|
-| No | 0 |
-| Low | 1 |
-| Medium | 2 |
-| High | 3 |
-| Yes | 2 |
+| -------- | -------------- |
+| No       | 0              |
+| Low      | 1              |
+| Medium   | 2              |
+| High     | 3              |
+| Yes      | 2              |
 
 ### MDI Formula
 
 The MDI is computed by combining:
+
 - Core symptom severity
 - Functional impairment
 - Inverse work interest (low interest → higher distress)
@@ -102,11 +106,11 @@ The MDI is computed by combining:
 
 Before clustering, each user is assigned a **risk band** based on MDI:
 
-| Risk Band | Interpretation |
-|--------|----------------|
-| Low | Emotionally stable / mild stress |
-| Moderate | Emerging or persistent stress patterns |
-| High | Significant emotional distress |
+| Risk Band | Interpretation                         |
+| --------- | -------------------------------------- |
+| Low       | Emotionally stable / mild stress       |
+| Moderate  | Emerging or persistent stress patterns |
+| High      | Significant emotional distress         |
 
 This prevents **severe cases from being averaged into mild clusters**.
 
@@ -141,9 +145,11 @@ Clinically Interpretable Cluster Output
 ## 🧪 Algorithms Used
 
 - **Multiple Correspondence Analysis (MCA)**
+
   - For dimensionality reduction on categorical data
 
 - **KMeans Clustering (per risk band)**
+
   - Applied only within Low / Moderate / High bands
   - Prevents centroid dilution
 
@@ -181,6 +187,7 @@ The Streamlit app allows users to:
 ## ⚠️ Ethical Disclaimer
 
 This tool:
+
 - ❌ Does NOT diagnose mental illness
 - ❌ Is NOT a replacement for professional care
 - ✅ Provides pattern-based well-being insights only
